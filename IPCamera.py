@@ -92,12 +92,6 @@ def execToDb(data):
 
 # for x in range(len(config)):
 #     generateCam(x)
-# session = None
-# def set_global_session():
-#     global session
-#     if not session:
-#         session = requests.Session()
-
 
 if __name__ == '__main__':
     with multiprocessing.Pool() as pool:
