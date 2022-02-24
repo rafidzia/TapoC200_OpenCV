@@ -4,9 +4,10 @@ import imutils
 import time
 import json
 import rx
-from rx.scheduler import ThreadPoolScheduler
+# from rx.scheduler import ThreadPoolScheduler
 from rx import operators as ops
 import psycopg2
+import multiprocessing
 
 conn = psycopg2.connect(database="testdb", user = "postgres", password = "asd", host = "127.0.0.1", port = "5432")
 
@@ -14,11 +15,12 @@ dictionary = cv2.aruco.DICT_4X4_50
 
 config = json.load(open('config.json'))
 
-thread_count = len(config)
-thread_pool_scheduler = ThreadPoolScheduler(thread_count)
-print("camera thread count is : {0}".format(thread_count))
+# thread_count = len(config)
+# thread_pool_scheduler = ThreadPoolScheduler(thread_count)
+# print("camera thread count is : {0}".format(thread_count))
 
 def generateCam(x):
+    print("camera {0} started".format(x))
     def startCamDetect(observer, scheduler):
         # vid = cv2.VideoCapture("rtsp://AdminTapo:AdminTapo@125.164.123.174/stream1")
         vid = cv2.VideoCapture(config[x]['url'])
@@ -36,6 +38,7 @@ def generateCam(x):
                 (corners, ids, rejected) = cv2.aruco.detectMarkers(image, arucoDict, parameters=arucoParams)
                 cv2.aruco.drawDetectedMarkers(image=show, corners=corners, ids=ids, borderColor=(0, 255, 0))
                 observer.on_next(ids)
+            
     
     tempids = []
     def filterObserver(ids):
@@ -58,7 +61,7 @@ def generateCam(x):
     .pipe(
         ops.filter(filterObserver),
         ops.map(lambda i: {"id" : x, "data" : []} if i is None else {"id" : x, "data" : i.flatten().tolist()}),
-        ops.subscribe_on(thread_pool_scheduler)
+        # ops.subscribe_on(thread_pool_scheduler)
         )\
     .subscribe(
         lambda i : threading.Thread(target=processData, args=(i,)).start(),
@@ -87,7 +90,18 @@ def execToDb(data):
     cur.close()
     print("executed")
 
-for x in range(len(config)):
-    generateCam(x)
+# for x in range(len(config)):
+#     generateCam(x)
+# session = None
+# def set_global_session():
+#     global session
+#     if not session:
+#         session = requests.Session()
 
-print("main thread closed")
+
+if __name__ == '__main__':
+    with multiprocessing.Pool() as pool:
+        pool.map(generateCam, range(len(config)))
+
+
+    print("main thread closed")
